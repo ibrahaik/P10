@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@id/signInFragment">
+
+
+    <fragment
+        android:id="@+id/signInFragment"
+        android:name="com.example.p10.SignInFragment"
+        android:label="fragment_sign_in"
+        tools:layout="@layout/fragment_sign_in" />
+    <fragment
+        android:id="@+id/signOutFragment"
+        android:name="com.example.p10.SignOutFragment"
+        android:label="fragment_sign_out"
+        tools:layout="@layout/fragment_sign_out" />
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="com.example.p10.RegisterFragment"
+        android:label="fragment_register"
+        tools:layout="@layout/fragment_register" />
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.example.p10.ProfileFragment"
+        android:label="fragment_profile"
+        tools:layout="@layout/fragment_profile" />
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.example.p10.HomeFragment"
+        android:label="fragment_home"
+        tools:layout="@layout/fragment_home" />
+</navigation>
