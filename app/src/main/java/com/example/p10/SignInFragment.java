@@ -3,6 +3,7 @@ package com.example.p10;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -21,14 +22,14 @@ import com.google.android.material.snackbar.Snackbar;
 
 import io.appwrite.Client;
 import io.appwrite.coroutines.CoroutineCallback;
-import io.appwrite.models.Session;
+import io.appwrite.exceptions.AppwriteException;
 import io.appwrite.services.Account;
 
 public class SignInFragment extends Fragment {
 
-    Client client;
-    Account account;
-    NavController navController;
+    private Client client;
+    private Account account;
+    private NavController navController;
 
     private EditText emailEditText, passwordEditText;
     private Button emailSignInButton;
@@ -47,23 +48,7 @@ public class SignInFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        Handler mainHandler = new Handler(Looper.getMainLooper());
-        client = new Client(requireActivity().getApplicationContext());
-        client.setProject(getString(R.string.APPWRITE_PROJECT_ID));
-
-        account = new Account(client);
-        account.getSession(
-                "current", // sessionId
-                new CoroutineCallback<>((result, error) -> {
-                    if (error != null) {
-                        error.printStackTrace();
-                        return;
-                    }
-                    // Si ya estamos logeados, pasamos a Home
-                    if (result != null)
-                        mainHandler.post(() -> actualizarUI("Ok"));
-                })
-        );
+        navController = Navigation.findNavController(view);
 
         emailEditText = view.findViewById(R.id.emailEditText);
         passwordEditText = view.findViewById(R.id.passwordEditText);
@@ -71,52 +56,40 @@ public class SignInFragment extends Fragment {
         signInForm = view.findViewById(R.id.signInForm);
         signInProgressBar = view.findViewById(R.id.signInProgressBar);
 
-        navController = Navigation.findNavController(view);
+        view.findViewById(R.id.gotoCreateAccountTextView).setOnClickListener(v ->
+                navController.navigate(R.id.registerFragment));
 
-        view.findViewById(R.id.gotoCreateAccountTextView).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                // Acción al hacer clic en "Crear cuenta"
-            }
-        });
-
-        emailSignInButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                accederConEmail();
-            }
-        });
+        emailSignInButton.setOnClickListener(v -> accederConEmail());
     }
 
-    private void accederConEmail()
-    {
+    private void accederConEmail() {
         signInForm.setVisibility(View.GONE);
         signInProgressBar.setVisibility(View.VISIBLE);
-        Account account = new Account(client);
+
+        client = new Client(requireContext()).setProject(getString(R.string.APPWRITE_PROJECT_ID));
+        account = new Account(client);
+
         Handler mainHandler = new Handler(Looper.getMainLooper());
         account.createEmailPasswordSession(
-                emailEditText.getText().toString(), // email
-                passwordEditText.getText().toString(), // password
+                emailEditText.getText().toString(),
+                passwordEditText.getText().toString(),
                 new CoroutineCallback<>((result, error) -> {
-                    if (error != null) {
-                        Snackbar.make(requireView(), "Error: " +
-                                error.toString(), Snackbar.LENGTH_LONG).show();
-                    }
-                    else
-                    {
-                        System.out.println("Sesión creada para el usuario:" + result.toString());
-                        mainHandler.post(() -> actualizarUI("Ok"));
-                    }
                     mainHandler.post(() -> {
                         signInForm.setVisibility(View.VISIBLE);
                         signInProgressBar.setVisibility(View.GONE);
                     });
+                    if (error != null) {
+                        Snackbar.make(requireView(), "Error: " + error.toString(), Snackbar.LENGTH_LONG).show();
+                    } else {
+                        mainHandler.post(() -> actualizarUI("Ok"));
+                    }
                 })
         );
     }
+
     private void actualizarUI(String currentUser) {
-        if(currentUser != null){
+        if (currentUser != null) {
             navController.navigate(R.id.homeFragment);
         }
-}
+    }
 }
