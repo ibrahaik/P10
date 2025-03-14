@@ -1,11 +1,13 @@
 package com.example.p10;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -143,10 +145,12 @@ public class HomeFragment extends Fragment {
 
     }
 
-    class PostViewHolder extends RecyclerView.ViewHolder
-    {
-        ImageView authorPhotoImageView, likeImageView, mediaImageView;
+    // Dentro de HomeFragment.java
+
+    class PostViewHolder extends RecyclerView.ViewHolder {
+        ImageView authorPhotoImageView, likeImageView, mediaImageView, btnDelete, btnShare;
         TextView authorTextView, contentTextView, numLikesTextView;
+
         PostViewHolder(@NonNull View itemView) {
             super(itemView);
             authorPhotoImageView = itemView.findViewById(R.id.authorPhotoImageView);
@@ -155,38 +159,38 @@ public class HomeFragment extends Fragment {
             authorTextView = itemView.findViewById(R.id.authorTextView);
             contentTextView = itemView.findViewById(R.id.contentTextView);
             numLikesTextView = itemView.findViewById(R.id.numLikesTextView);
+            btnDelete = itemView.findViewById(R.id.btnDelete); // Referencia al botón de eliminar
+            btnShare = itemView.findViewById(R.id.btnShare);
         }
     }
+
     class PostsAdapter extends RecyclerView.Adapter<PostViewHolder> {
-        DocumentList<Map<String,Object>> lista = null;
+        DocumentList<Map<String, Object>> lista = null;
+
         @NonNull
+        @Override
+        public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            return new PostViewHolder(LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.viewholder_post, parent, false));
+        }
 
         @Override
-        public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int
-                viewType) {
-            return new
-                    PostViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.viewholder_post, parent, false));
-        }
-        @Override
-        public void onBindViewHolder(@NonNull PostViewHolder holder, int position)
-        {
-            Map<String,Object> post =
-                    lista.getDocuments().get(position).getData();
-            if (post.get("authorPhotoUrl") == null)
-            {
+        public void onBindViewHolder(@NonNull PostViewHolder holder, int position) {
+            Map<String, Object> post = lista.getDocuments().get(position).getData();
+
+            // Configurar datos del post (autor, contenido, etc.)
+            if (post.get("authorPhotoUrl") == null) {
                 holder.authorPhotoImageView.setImageResource(R.drawable.user);
-            }
-            else
-            {
+            } else {
                 Glide.with(getContext()).load(post.get("authorPhotoUrl").toString()).circleCrop()
                         .into(holder.authorPhotoImageView);
             }
             holder.authorTextView.setText(post.get("author").toString());
             holder.contentTextView.setText(post.get("content").toString());
 
-            // Gestion de likes
+            // Gestión de likes (código existente)
             List<String> likes = (List<String>) post.get("likes");
-            if(likes.contains(userId))
+            if (likes.contains(userId))
                 holder.likeImageView.setImageResource(R.drawable.like_on);
             else
                 holder.likeImageView.setImageResource(R.drawable.like_off);
@@ -224,13 +228,52 @@ public class HomeFragment extends Fragment {
                 }
             });
 
+            // Configuración del botón eliminar
+            if (post.get("uid") != null && post.get("uid").toString().equals(userId)) {
+            holder.btnDelete.setVisibility(View.VISIBLE);
+            holder.btnDelete.setOnClickListener(view -> {
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle("Eliminar Post")
+                        .setMessage("¿Seguro que deseas eliminar este post?")
+                        .setPositiveButton("Eliminar", (dialog, which) -> {
+                            // Se crea una copia del post para poder restaurarlo en caso de "deshacer"
+                            final Map<String, Object> deletedPost = new HashMap<>(post);
+                            String postId = post.get("$id").toString();
+                            DeletePost.deletePost(client, postId, requireContext(), success -> {
+                                if (success) {
+                                    // Actualizamos la lista de posts
+                                    obtenerPosts();
+                                    // Mostrar Snackbar con acción "Deshacer"
+                                    Snackbar.make(requireView(), "Post eliminado", Snackbar.LENGTH_LONG)
+                                            .setAction("Deshacer", v -> {
+                                                DeletePost.restorePost(client, deletedPost, requireContext(), restoreSuccess -> {
+                                                    if (restoreSuccess) {
+                                                        obtenerPosts();
+                                                        Snackbar.make(requireView(), "Post restaurado", Snackbar.LENGTH_SHORT).show();
+                                                    } else {
+                                                        Snackbar.make(requireView(), "Error al restaurar el post", Snackbar.LENGTH_SHORT).show();
+                                                    }
+                                                });
+                                            }).show();
+                                } else {
+                                    Snackbar.make(requireView(), "Error al eliminar el post", Snackbar.LENGTH_SHORT).show();
+                                }
+                            });
+                        })
+                        .setNegativeButton("Cancelar", null)
+                        .show();
+            });
+        } else {
+            holder.btnDelete.setVisibility(View.GONE);
+        }
+
+            // Configuración de media (código existente)
             if (post.get("mediaUrl") != null) {
                 holder.mediaImageView.setVisibility(View.VISIBLE);
                 if ("audio".equals(post.get("mediaType").toString())) {
                     Glide.with(requireView()).load(R.drawable.audio).centerCrop().into(holder.mediaImageView);
                 } else {
-                    Glide.with(requireView()).load(post.get("mediaUrl").toString()).centerCrop().into
-                            (holder.mediaImageView);
+                    Glide.with(requireView()).load(post.get("mediaUrl").toString()).centerCrop().into(holder.mediaImageView);
                 }
                 holder.mediaImageView.setOnClickListener(view -> {
                     appViewModel.postSeleccionado.setValue(post);
@@ -239,20 +282,33 @@ public class HomeFragment extends Fragment {
             } else {
                 holder.mediaImageView.setVisibility(View.GONE);
             }
-        }
 
+
+
+            holder.btnShare.setOnClickListener(v -> {
+                Intent shareIntent = new Intent(Intent.ACTION_SEND);
+                shareIntent.setType("text/plain");
+
+                String contenido = post.get("content") != null ? post.get("content").toString() : "Sin contenido";
+                shareIntent.putExtra(Intent.EXTRA_TEXT, contenido);
+
+                Intent chooser = Intent.createChooser(shareIntent, "Compartir publicación");
+                v.getContext().startActivity(chooser);
+            });
+
+        }
 
         @Override
         public int getItemCount() {
             return lista == null ? 0 : lista.getDocuments().size();
         }
-        public void establecerLista(DocumentList<Map<String,Object>> lista)
-        {
+
+        public void establecerLista(DocumentList<Map<String, Object>> lista) {
             this.lista = lista;
             notifyDataSetChanged();
         }
-
     }
+
 
     void obtenerPosts()
     {
