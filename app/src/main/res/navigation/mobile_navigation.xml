@@ -26,6 +26,10 @@
         android:name="com.example.p10.ProfileFragment"
         android:label="fragment_profile"
         tools:layout="@layout/fragment_profile" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="void enviarNotificacion(String postOwnerEmail, String commentText) {&#xA;    Mail mail = new Mail();&#xA;    mail.setTo(postOwnerEmail);&#xA;    mail.setSubject(&quot;Nuevo comentario en tu post&quot;);&#xA;    mail.setBody(&quot;Alguien comentó en tu publicación: &quot; + commentText);&#xA;    &#xA;    mail.send();&#xA;}&#xA;" />
     <fragment
         android:id="@+id/homeFragment"
         android:name="com.example.p10.HomeFragment"
