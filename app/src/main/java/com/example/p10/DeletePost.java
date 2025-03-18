@@ -45,7 +45,6 @@ public class DeletePost {
     }
 
     public static void restorePost(Client client, Map<String, Object> postData, Context context, RestoreCallback callback) {
-        // Crear una copia y eliminar campos de sistema
         Map<String, Object> dataToRestore = new HashMap<>(postData);
         dataToRestore.keySet().removeIf(key -> key.startsWith("$"));
 

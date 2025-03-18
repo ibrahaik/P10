@@ -1,6 +1,7 @@
 package com.example.p10;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -8,6 +9,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;  // Usamos EditText
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -25,21 +27,27 @@ import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import io.appwrite.Client;
+import io.appwrite.Query;
 import io.appwrite.coroutines.CoroutineCallback;
 import io.appwrite.exceptions.AppwriteException;
+import io.appwrite.models.Document;
 import io.appwrite.models.DocumentList;
 import io.appwrite.services.Account;
 import io.appwrite.services.Databases;
-
+import io.appwrite.services.Databases;
+import io.appwrite.services.Storage;
+import io.appwrite.services.Storage;
+import io.appwrite.models.File;
+import io.appwrite.models.InputFile;
 
 public class HomeFragment extends Fragment {
 
-    // Argumentos para inicialización del fragmento
     private static final String ARG_PARAM1 = "param1";
     private static final String ARG_PARAM2 = "param2";
     AppViewModel appViewModel;
@@ -56,17 +64,8 @@ public class HomeFragment extends Fragment {
     private String userId;
 
     public HomeFragment() {
-        // Constructor vacío requerido
     }
 
-    /**
-     * Método de fábrica para crear una nueva instancia del fragmento
-     * con los parámetros proporcionados.
-     *
-     * @param param1 Parámetro 1.
-     * @param param2 Parámetro 2.
-     * @return Una nueva instancia de HomeFragment.
-     */
     public static HomeFragment newInstance(String param1, String param2) {
         HomeFragment fragment = new HomeFragment();
         Bundle args = new Bundle();
@@ -79,7 +78,7 @@ public class HomeFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getArguments() != null) {
+        if(getArguments() != null) {
             mParam1 = getArguments().getString(ARG_PARAM1);
             mParam2 = getArguments().getString(ARG_PARAM2);
         }
@@ -88,18 +87,15 @@ public class HomeFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        // Inflar el layout para este fragmento
         return inflater.inflate(R.layout.fragment_home, container, false);
     }
 
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        appViewModel = new ViewModelProvider(requireActivity()).get(AppViewModel.class);
 
-        appViewModel = new
-                ViewModelProvider(requireActivity()).get(AppViewModel.class);
-
-        // Obtener referencias a los elementos del encabezado del NavigationView
+        // Obtener referencias al encabezado del NavigationView
         NavigationView navigationView = view.getRootView().findViewById(R.id.nav_view);
         View header = navigationView.getHeaderView(0);
         photoImageView = header.findViewById(R.id.imageView);
@@ -116,7 +112,7 @@ public class HomeFragment extends Fragment {
         // Obtener información del usuario
         try {
             account.get(new CoroutineCallback<>((result, error) -> {
-                if (error != null) {
+                if(error != null) {
                     error.printStackTrace();
                     return;
                 }
@@ -131,25 +127,20 @@ public class HomeFragment extends Fragment {
         } catch (AppwriteException e) {
             throw new RuntimeException(e);
         }
-        view.findViewById(R.id.gotoNewPostFragmentButton).setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                navController.navigate(R.id.newPostFragment);
-            }
+
+        view.findViewById(R.id.gotoNewPostFragmentButton).setOnClickListener(v -> {
+            navController.navigate(R.id.newPostFragment);
         });
 
         RecyclerView postsRecyclerView = view.findViewById(R.id.postsRecyclerView);
         adapter = new PostsAdapter();
         postsRecyclerView.setAdapter(adapter);
-
-
     }
-
-    // Dentro de HomeFragment.java
 
     class PostViewHolder extends RecyclerView.ViewHolder {
         ImageView authorPhotoImageView, likeImageView, mediaImageView, btnDelete, btnShare;
         TextView authorTextView, contentTextView, numLikesTextView;
+
 
         PostViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -159,36 +150,41 @@ public class HomeFragment extends Fragment {
             authorTextView = itemView.findViewById(R.id.authorTextView);
             contentTextView = itemView.findViewById(R.id.contentTextView);
             numLikesTextView = itemView.findViewById(R.id.numLikesTextView);
-            btnDelete = itemView.findViewById(R.id.btnDelete); // Referencia al botón de eliminar
+            btnDelete = itemView.findViewById(R.id.btnDelete);
             btnShare = itemView.findViewById(R.id.btnShare);
+
         }
     }
 
+    // Adaptador de posts
     class PostsAdapter extends RecyclerView.Adapter<PostViewHolder> {
         DocumentList<Map<String, Object>> lista = null;
 
         @NonNull
         @Override
         public PostViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            return new PostViewHolder(LayoutInflater.from(parent.getContext())
-                    .inflate(R.layout.viewholder_post, parent, false));
+            View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.viewholder_post, parent, false);
+            return new PostViewHolder(view);
         }
 
         @Override
         public void onBindViewHolder(@NonNull PostViewHolder holder, int position) {
             Map<String, Object> post = lista.getDocuments().get(position).getData();
+            final String postId = post.get("$id").toString();  // Definido una sola vez
 
-            // Configurar datos del post (autor, contenido, etc.)
+            // Configurar datos del post
             if (post.get("authorPhotoUrl") == null) {
                 holder.authorPhotoImageView.setImageResource(R.drawable.user);
             } else {
-                Glide.with(getContext()).load(post.get("authorPhotoUrl").toString()).circleCrop()
+                Glide.with(getContext())
+                        .load(post.get("authorPhotoUrl").toString())
+                        .circleCrop()
                         .into(holder.authorPhotoImageView);
             }
             holder.authorTextView.setText(post.get("author").toString());
             holder.contentTextView.setText(post.get("content").toString());
 
-            // Gestión de likes (código existente)
+            // Gestión de likes
             List<String> likes = (List<String>) post.get("likes");
             if (likes.contains(userId))
                 holder.likeImageView.setImageResource(R.drawable.like_on);
@@ -206,74 +202,72 @@ public class HomeFragment extends Fragment {
                 Map<String, Object> data = new HashMap<>();
                 data.put("likes", nuevosLikes);
                 try {
-
                     databases.updateDocument(
                             getString(R.string.APPWRITE_DATABASE_ID),
                             getString(R.string.APPWRITE_POSTS_COLLECTION_ID),
-                            post.get("$id").toString(), // documentId
-                            data, // data (optional)
-                            new ArrayList<>(), // permissions (optional)
+                            postId,
+                            data,
+                            new ArrayList<>(),
                             new CoroutineCallback<>((result, error) -> {
-                                if (error != null) {
+                                if(error != null){
                                     error.printStackTrace();
                                     return;
                                 }
-                                System.out.println("Likes actualizados:" +
-                                        result.toString());
                                 mainHandler.post(() -> obtenerPosts());
                             })
                     );
-                } catch (AppwriteException e) {
+                } catch(AppwriteException e){
                     throw new RuntimeException(e);
                 }
             });
 
-            // Configuración del botón eliminar
             if (post.get("uid") != null && post.get("uid").toString().equals(userId)) {
-            holder.btnDelete.setVisibility(View.VISIBLE);
-            holder.btnDelete.setOnClickListener(view -> {
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
-                        .setTitle("Eliminar Post")
-                        .setMessage("¿Seguro que deseas eliminar este post?")
-                        .setPositiveButton("Eliminar", (dialog, which) -> {
-                            // Se crea una copia del post para poder restaurarlo en caso de "deshacer"
-                            final Map<String, Object> deletedPost = new HashMap<>(post);
-                            String postId = post.get("$id").toString();
-                            DeletePost.deletePost(client, postId, requireContext(), success -> {
-                                if (success) {
-                                    // Actualizamos la lista de posts
-                                    obtenerPosts();
-                                    // Mostrar Snackbar con acción "Deshacer"
-                                    Snackbar.make(requireView(), "Post eliminado", Snackbar.LENGTH_LONG)
-                                            .setAction("Deshacer", v -> {
-                                                DeletePost.restorePost(client, deletedPost, requireContext(), restoreSuccess -> {
-                                                    if (restoreSuccess) {
-                                                        obtenerPosts();
-                                                        Snackbar.make(requireView(), "Post restaurado", Snackbar.LENGTH_SHORT).show();
-                                                    } else {
-                                                        Snackbar.make(requireView(), "Error al restaurar el post", Snackbar.LENGTH_SHORT).show();
-                                                    }
-                                                });
-                                            }).show();
-                                } else {
-                                    Snackbar.make(requireView(), "Error al eliminar el post", Snackbar.LENGTH_SHORT).show();
-                                }
-                            });
-                        })
-                        .setNegativeButton("Cancelar", null)
-                        .show();
-            });
-        } else {
-            holder.btnDelete.setVisibility(View.GONE);
-        }
+                holder.btnDelete.setVisibility(View.VISIBLE);
+                holder.btnDelete.setOnClickListener(view -> {
+                    new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                            .setTitle("Eliminar Post")
+                            .setMessage("¿Seguro que deseas eliminar este post?")
+                            .setPositiveButton("Eliminar", (dialog, which) -> {
+                                final Map<String, Object> deletedPost = new HashMap<>(post);
+                                DeletePost.deletePost(client, postId, requireContext(), success -> {
+                                    if (success) {
+                                        obtenerPosts();
+                                        Snackbar.make(requireView(), "Post eliminado", Snackbar.LENGTH_LONG)
+                                                .setAction("Deshacer", v -> {
+                                                    DeletePost.restorePost(client, deletedPost, requireContext(), restoreSuccess -> {
+                                                        if (restoreSuccess) {
+                                                            obtenerPosts();
+                                                            Snackbar.make(requireView(), "Post restaurado", Snackbar.LENGTH_SHORT).show();
+                                                        } else {
+                                                            Snackbar.make(requireView(), "Error al restaurar el post", Snackbar.LENGTH_SHORT).show();
+                                                        }
+                                                    });
+                                                }).show();
+                                    } else {
+                                        Snackbar.make(requireView(), "Error al eliminar el post", Snackbar.LENGTH_SHORT).show();
+                                    }
+                                });
+                            })
+                            .setNegativeButton("Cancelar", null)
+                            .show();
+                });
+            } else {
+                holder.btnDelete.setVisibility(View.GONE);
+            }
 
-            // Configuración de media (código existente)
+            // Configuración de media
             if (post.get("mediaUrl") != null) {
                 holder.mediaImageView.setVisibility(View.VISIBLE);
                 if ("audio".equals(post.get("mediaType").toString())) {
-                    Glide.with(requireView()).load(R.drawable.audio).centerCrop().into(holder.mediaImageView);
+                    Glide.with(requireView())
+                            .load(R.drawable.audio)
+                            .centerCrop()
+                            .into(holder.mediaImageView);
                 } else {
-                    Glide.with(requireView()).load(post.get("mediaUrl").toString()).centerCrop().into(holder.mediaImageView);
+                    Glide.with(requireView())
+                            .load(post.get("mediaUrl").toString())
+                            .centerCrop()
+                            .into(holder.mediaImageView);
                 }
                 holder.mediaImageView.setOnClickListener(view -> {
                     appViewModel.postSeleccionado.setValue(post);
@@ -283,18 +277,17 @@ public class HomeFragment extends Fragment {
                 holder.mediaImageView.setVisibility(View.GONE);
             }
 
-
-
             holder.btnShare.setOnClickListener(v -> {
                 Intent shareIntent = new Intent(Intent.ACTION_SEND);
                 shareIntent.setType("text/plain");
-
                 String contenido = post.get("content") != null ? post.get("content").toString() : "Sin contenido";
-                shareIntent.putExtra(Intent.EXTRA_TEXT, contenido);
+                String mensajeParaCompartir = "¡Echa un vistazo a esta publicación: " + "{ " +  contenido + " }" + " https://www.p10ibrahim.com";
 
+                shareIntent.putExtra(Intent.EXTRA_TEXT, mensajeParaCompartir);
                 Intent chooser = Intent.createChooser(shareIntent, "Compartir publicación");
                 v.getContext().startActivity(chooser);
             });
+
 
         }
 
@@ -309,23 +302,19 @@ public class HomeFragment extends Fragment {
         }
     }
 
-
-    void obtenerPosts()
-    {
+    void obtenerPosts() {
         Databases databases = new Databases(client);
         Handler mainHandler = new Handler(Looper.getMainLooper());
         try {
             databases.listDocuments(
-                    getString(R.string.APPWRITE_DATABASE_ID), // databaseId
-                    getString(R.string.APPWRITE_POSTS_COLLECTION_ID), // collectionId
-                    new ArrayList<>(), // queries (optional)
+                    getString(R.string.APPWRITE_DATABASE_ID),
+                    getString(R.string.APPWRITE_POSTS_COLLECTION_ID),
+                    new ArrayList<>(),
                     new CoroutineCallback<>((result, error) -> {
                         if (error != null) {
-                            Snackbar.make(requireView(), "Error al obtener los posts: "
-                                    + error.toString(), Snackbar.LENGTH_LONG).show();
+                            Snackbar.make(requireView(), "Error al obtener los posts: " + error.toString(), Snackbar.LENGTH_LONG).show();
                             return;
                         }
-                        System.out.println( result.toString() );
                         mainHandler.post(() -> adapter.establecerLista(result));
                     })
             );
@@ -333,4 +322,5 @@ public class HomeFragment extends Fragment {
             throw new RuntimeException(e);
         }
     }
+
 }

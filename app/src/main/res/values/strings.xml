@@ -11,7 +11,7 @@
     <string name="APPWRITE_POSTS_COLLECTION_ID">67af535d0035d081746c</string>
     <string name="APPWRITE_PROJECT_ID">67acbf140025a0ba4873</string>
     <string name="APPWRITE_STORAGE_BUCKET_ID">67b5f7b7003d5aebbe1a</string>
-
+    <string name="APPWRITE_COMMENTS_COLLECTION_ID">67d852fa003d1aff1d57</string>
 
     <string name="menu_home">Home</string>
     <string name="menu_gallery">Gallery</string>
